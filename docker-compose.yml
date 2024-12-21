@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  hadoop-master:
+    image: liliasfaxi/hadoop-cluster:latest
+    hostname: hadoop-master
+    container_name: hadoop-master
+    ports:
+      - "9870:9870"   # HDFS NameNode UI
+      - "8088:8088"   # YARN ResourceManager UI
+      - "16010:16010" # HBase UI
+      - "9095:9095"   # Hbase thrift server
+    networks:
+      - hadoop-network
+    volumes:
+      - ./data:/root/data
+    command: /bin/bash -c "apt-get update && apt-get install -y python3-pip && pip3 install happybase && service ssh start && ./start-hadoop.sh && start-hbase.sh && hbase thrift start && tail -f /dev/null"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9870"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  hadoop-worker1:
+    image: liliasfaxi/hadoop-cluster:latest
+    hostname: hadoop-worker1
+    container_name: hadoop-worker1
+    ports:
+      - "8040:8042"   # YARN NodeManager UI
+    networks:
+      - hadoop-network
+    volumes:
+      - ./data:/data
+    depends_on:
+      - hadoop-master
+    command: /bin/bash -c "service ssh start && tail -f /dev/null"
+
+  hadoop-worker2:
+    image: liliasfaxi/hadoop-cluster:latest
+    hostname: hadoop-worker2
+    container_name: hadoop-worker2
+    ports:
+      - "8041:8042"   # YARN NodeManager UI
+    networks:
+      - hadoop-network
+    volumes:
+      - ./data:/data
+    depends_on:
+      - hadoop-master
+    command: /bin/bash -c "service ssh start && tail -f /dev/null"
+
+networks:
+  hadoop-network:
+    driver: bridge
+    name: hadoop-network
+
+volumes:
+  data:
+    driver: local
